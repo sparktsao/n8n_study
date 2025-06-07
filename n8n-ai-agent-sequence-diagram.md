@@ -157,7 +157,7 @@ sequenceDiagram
 - Real-time tool execution via `callTool()` MCP protocol method
 - Automatic conversion to LangChain-compatible format
 
-### 3. LLM System Prompt Construction
+### LLM System Prompt Construction
 ```
 System Message: "You are a helpful assistant"
 + Tool Descriptions: Embedded automatically from connected tools
@@ -167,7 +167,7 @@ System Message: "You are a helpful assistant"
 + Agent Scratchpad: Tool execution results
 ```
 
-### 4. Tool Calling Flow
+### Tool Calling Flow
 
 #### Tool Call Detection
 - LLM response parsed for tool calling requests
@@ -184,7 +184,7 @@ System Message: "You are a helpful assistant"
 - LLM continues reasoning with tool outputs
 - Iterative process until final answer or max iterations reached
 
-### 5. Output Processing
+### Output Processing
 
 #### Structured Output (with Output Parser)
 - Special `format_final_json_response` tool injected
@@ -197,7 +197,7 @@ System Message: "You are a helpful assistant"
 - Automatic formatting and cleanup
 - Handles different model output formats (OpenAI vs Anthropic)
 
-### 6. Memory Management
+### Memory Management
 - Optional conversation history storage
 - Maintains context across multiple interactions
 - Supports different memory implementations
