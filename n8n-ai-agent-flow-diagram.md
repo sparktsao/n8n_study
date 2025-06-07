@@ -437,3 +437,11 @@ export async function getAllTools(client: Client, cursor?: string): Promise<McpT
 
 	if (nextCursor) {
 		return (tools as McpTool[]).concat(await getAllTools(client, nextCursor));
+	}
+
+	return tools as McpTool[];
+}
+```
+
+### Section 12: Convert MCP Tools
+*Reference: `packages/@n8n/nodes-langchain/
