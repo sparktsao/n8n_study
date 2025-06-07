@@ -137,12 +137,12 @@ sequenceDiagram
 
 ## Key Components Breakdown
 
-### 1. Question Processing
+### Question Processing
 - **Input Validation**: Checks if user input is provided and valid
 - **Agent Type Selection**: Determines which agent implementation to use (Tools Agent recommended)
 - **Parameter Extraction**: Gets system message, max iterations, and other options
 
-### 2. Tool Discovery & Integration
+### Tool Discovery & Integration
 
 #### N8n Tools
 - Connected via `ai_tool` input connections
