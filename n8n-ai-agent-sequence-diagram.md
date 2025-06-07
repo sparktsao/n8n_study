@@ -6,12 +6,12 @@ This document provides a comprehensive analysis of how the n8n AI Agent node pro
 
 The n8n AI Agent node supports multiple agent types, with **Tools Agent** being the recommended implementation. The flow involves:
 
-1. **Question Processing** - User input validation and preparation
-2. **Tool Discovery** - Gathering available tools (n8n tools + MCP tools)
-3. **LLM System Prompt** - Embedding tool descriptions into system prompt
-4. **LLM Response Analysis** - Checking for tool calling requests
-5. **Tool Execution** - Calling requested tools if needed
-6. **Iterative LLM Calls** - Continuing conversation until completion
+- **Question Processing** - User input validation and preparation
+- **Tool Discovery** - Gathering available tools (n8n tools + MCP tools)
+- **LLM System Prompt** - Embedding tool descriptions into system prompt
+- **LLM Response Analysis** - Checking for tool calling requests
+- **Tool Execution** - Calling requested tools if needed
+- **Iterative LLM Calls** - Continuing conversation until completion
 
 ## Detailed Sequence Diagram
 
@@ -31,24 +31,24 @@ sequenceDiagram
     Note over User, Memory: QUESTION PROCESSING PHASE
     User->>AgentNode: User Question Input
     AgentNode->>AgentNode: Validate Input Parameters
-    AgentNode->>AgentNode: Determine Agent Type (toolsAgent)
+    AgentNode->>AgentNode: Determine Agent Type
     AgentNode->>ToolsAgent: Execute with Input
 
     Note over ToolsAgent, Memory: INITIALIZATION PHASE
-    ToolsAgent->>LLM: getChatModel() - Validate LLM supports tool calling
-    ToolsAgent->>Memory: getOptionalMemory() - Load conversation history
-    ToolsAgent->>OutputParser: getOptionalOutputParser() - Load output format requirements
+    ToolsAgent->>LLM: getChatModel - Validate LLM supports tool calling
+    ToolsAgent->>Memory: getOptionalMemory - Load conversation history
+    ToolsAgent->>OutputParser: getOptionalOutputParser - Load output format requirements
 
     Note over ToolsAgent, Memory: TOOL DISCOVERY PHASE
-    ToolsAgent->>ToolConnector: getConnectedTools()
+    ToolsAgent->>ToolConnector: getConnectedTools
     
     ToolConnector->>N8nTool: Discover N8n Tools
     N8nTool-->>ToolConnector: Return N8n Tool Definitions
     
     ToolConnector->>MCPClient: Discover MCP Tools
-    MCPClient->>MCPServer: listTools() - Get available tools
+    MCPClient->>MCPServer: listTools - Get available tools
     MCPServer-->>MCPClient: Return MCP Tool Definitions
-    MCPClient->>MCPClient: mcpToolToDynamicTool() - Convert to LangChain format
+    MCPClient->>MCPClient: mcpToolToDynamicTool - Convert to LangChain format
     MCPClient-->>ToolConnector: Return Converted MCP Tools
     
     ToolConnector->>ToolConnector: Validate Unique Tool Names
@@ -62,35 +62,35 @@ sequenceDiagram
     end
 
     Note over ToolsAgent, Memory: PROMPT PREPARATION PHASE
-    ToolsAgent->>ToolsAgent: prepareMessages() - Build prompt template
-    ToolsAgent->>ToolsAgent: Include system message + tool descriptions
+    ToolsAgent->>ToolsAgent: prepareMessages - Build prompt template
+    ToolsAgent->>ToolsAgent: Include system message and tool descriptions
     ToolsAgent->>ToolsAgent: Add chat history placeholder
     ToolsAgent->>ToolsAgent: Add user input placeholder
     ToolsAgent->>ToolsAgent: Add agent scratchpad placeholder
 
     Note over ToolsAgent, Memory: AGENT CREATION PHASE
-    ToolsAgent->>LLM: createToolCallingAgent() - Bind tools to LLM
+    ToolsAgent->>LLM: createToolCallingAgent - Bind tools to LLM
     ToolsAgent->>ToolsAgent: Create RunnableSequence with parsers
     ToolsAgent->>ToolsAgent: Create AgentExecutor with tools and memory
 
     Note over ToolsAgent, Memory: LLM INTERACTION LOOP
-    ToolsAgent->>LLM: Initial invoke() with user question + system prompt
+    ToolsAgent->>LLM: Initial invoke with user question and system prompt
     
     loop Until Final Answer or Max Iterations
         LLM->>LLM: Process input with tool descriptions in context
-        LLM-->>ToolsAgent: Return response (text or tool calls)
+        LLM-->>ToolsAgent: Return response with text or tool calls
         
         alt LLM Requests Tool Call
             ToolsAgent->>ToolsAgent: Parse tool call request
             
             alt N8n Tool Call
                 ToolsAgent->>N8nTool: Execute tool with parameters
-                N8nTool->>N8nTool: Validate input schema (Zod)
-                N8nTool->>N8nTool: Execute n8n workflow/function
+                N8nTool->>N8nTool: Validate input schema with Zod
+                N8nTool->>N8nTool: Execute n8n workflow function
                 N8nTool-->>ToolsAgent: Return tool result
             else MCP Tool Call
                 ToolsAgent->>MCPClient: Execute MCP tool
-                MCPClient->>MCPServer: callTool() with parameters
+                MCPClient->>MCPServer: callTool with parameters
                 MCPServer->>MCPServer: Execute tool logic
                 MCPServer-->>MCPClient: Return tool result
                 MCPClient-->>ToolsAgent: Return formatted result
@@ -108,13 +108,13 @@ sequenceDiagram
         ToolsAgent->>OutputParser: Parse structured output
         OutputParser-->>ToolsAgent: Return validated structured data
     else No Output Parser
-        ToolsAgent->>ToolsAgent: handleAgentFinishOutput() - Normalize response
+        ToolsAgent->>ToolsAgent: handleAgentFinishOutput - Normalize response
     end
 
     Note over ToolsAgent, Memory: MEMORY STORAGE PHASE
     alt Memory Connected
         ToolsAgent->>Memory: Save conversation context
-        Memory->>Memory: Store user question + agent response
+        Memory->>Memory: Store user question and agent response
     end
 
     Note over ToolsAgent, Memory: RESPONSE FINALIZATION
@@ -127,7 +127,7 @@ sequenceDiagram
         N8nTool-->>ToolsAgent: Error message
         ToolsAgent->>LLM: Send error to LLM for handling
     else MCP Connection Error
-        MCPClient-->>ToolsAgent: Connection/execution error
+        MCPClient-->>ToolsAgent: Connection or execution error
         ToolsAgent->>LLM: Send error to LLM for handling
     else LLM Error
         LLM-->>ToolsAgent: Processing error
@@ -205,26 +205,26 @@ System Message: "You are a helpful assistant"
 
 ## Error Handling Strategies
 
-1. **Tool Connection Errors**: Graceful fallback, error reporting to LLM
-2. **Tool Execution Errors**: Error message passed to LLM for handling
-3. **LLM Errors**: Proper error propagation with context
-4. **Schema Validation Errors**: Detailed error messages for debugging
-5. **MCP Protocol Errors**: Connection retry and error reporting
+- **Tool Connection Errors**: Graceful fallback, error reporting to LLM
+- **Tool Execution Errors**: Error message passed to LLM for handling
+- **LLM Errors**: Proper error propagation with context
+- **Schema Validation Errors**: Detailed error messages for debugging
+- **MCP Protocol Errors**: Connection retry and error reporting
 
 ## Performance Optimizations
 
-1. **Tool Caching**: Tools discovered once per execution
-2. **Schema Validation**: Efficient Zod-based validation
-3. **Memory Optimization**: Optional memory usage
-4. **Streaming Support**: Disabled for stability in tool calling scenarios
-5. **Connection Pooling**: MCP client connection reuse
+- **Tool Caching**: Tools discovered once per execution
+- **Schema Validation**: Efficient Zod-based validation
+- **Memory Optimization**: Optional memory usage
+- **Streaming Support**: Disabled for stability in tool calling scenarios
+- **Connection Pooling**: MCP client connection reuse
 
 ## Security Considerations
 
-1. **Tool Access Control**: Only explicitly connected tools available
-2. **Input Validation**: All tool inputs validated against schemas
-3. **MCP Authentication**: Support for header and bearer token auth
-4. **Error Sanitization**: Sensitive information filtered from error messages
-5. **Resource Limits**: Max iterations and timeout controls
+- **Tool Access Control**: Only explicitly connected tools available
+- **Input Validation**: All tool inputs validated against schemas
+- **MCP Authentication**: Support for header and bearer token auth
+- **Error Sanitization**: Sensitive information filtered from error messages
+- **Resource Limits**: Max iterations and timeout controls
 
 This implementation provides a robust, extensible framework for AI agents that can seamlessly integrate both local n8n tools and remote MCP tools while maintaining conversation context and providing structured outputs.
