@@ -1,4 +1,4 @@
-# n8n AI Agent Node - Flow Analysis
+# n8n AI Agent Node - Flow Analysis with Code References
 
 ## Complete Process Flow
 
@@ -59,132 +59,684 @@ graph TD
     FF --> GG[Return Final Answer]
     GG --> HH[User Receives Response]
 
-    %% Clickable links to source code
-    click B "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/Agent.node.ts" "Main Agent Node"
-    click D "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts" "Tools Agent Executor"
-    click F "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L200" "getChatModel Function"
-    click G "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L210" "getOptionalMemory Function"
-    click H "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/output_parsers/N8nOutputParser.ts#L12" "getOptionalOutputParser Function"
-    click I "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/helpers.ts#L120" "getConnectedTools Function"
-    click J "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/N8nTool.ts" "N8n Tool Implementation"
-    click K "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/McpClientTool.node.ts" "MCP Client Tool"
-    click L "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/N8nTool.ts#L44" "N8n Tool asDynamicTool"
-    click M "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L120" "MCP SSE Connection"
-    click N "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L10" "MCP getAllTools Function"
-    click O "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L70" "mcpToolToDynamicTool Function"
-    click P "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/helpers.ts#L140" "Tool Name Validation"
-    click Q "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L250" "prepareMessages Function"
-    click R "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/prompt.ts" "System Message"
-    click T "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L320" "createToolCallingAgent"
-    click U "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L350" "Agent Executor Invoke"
-    click W "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L100" "getAgentStepsParser"
-    click Y1 "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/N8nTool.ts#L44" "N8n Tool Execution"
-    click Y2 "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L50" "MCP Tool Execution"
-    click DD "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L130" "handleParsedStepOutput"
-    click EE "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L60" "handleAgentFinishOutput"
+    %% Internal links to code sections
+    click B "#main-agent-node" "Main Agent Node Implementation"
+    click D "#tools-agent-executor" "Tools Agent Executor"
+    click F "#get-chat-model" "Get Chat Model Function"
+    click G "#get-optional-memory" "Get Optional Memory Function"
+    click H "#get-output-parser" "Get Output Parser Function"
+    click I "#discover-tools" "Discover Tools Function"
+    click J "#n8n-tools" "N8n Tool Implementation"
+    click K "#mcp-tools" "MCP Client Tool"
+    click L "#convert-n8n-tools" "Convert N8n Tools"
+    click M "#mcp-sse-connection" "MCP SSE Connection"
+    click N "#list-mcp-tools" "List MCP Tools"
+    click O "#convert-mcp-tools" "Convert MCP Tools"
+    click P "#validate-tool-names" "Validate Tool Names"
+    click Q "#prepare-messages" "Prepare Messages"
+    click R "#system-message" "System Message"
+    click T "#create-agent" "Create Tool Calling Agent"
+    click U "#agent-executor" "Agent Executor Invoke"
+    click W "#parse-tool-request" "Parse Tool Request"
+    click Y1 "#execute-n8n-tool" "Execute N8n Tool"
+    click Y2 "#execute-mcp-tool" "Execute MCP Tool"
+    click DD "#format-structured-output" "Format Structured Output"
+    click EE "#clean-response" "Clean Response"
 ```
 
-## Detailed Component Breakdown
+## Code Implementation Details
 
-### Phase 1: Question Processing
-- **Input Validation**: User question is validated and prepared
-- **Agent Selection**: Tools Agent is selected as the execution engine
-- **Parameter Setup**: System message, max iterations, and options are configured
+### Main Agent Node
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/Agent.node.ts`*
 
-### Phase 2: Component Initialization
-- **Chat Model**: Validates LLM supports tool calling functionality
-- **Memory**: Loads conversation history if memory is connected
-- **Output Parser**: Prepares structured output formatting if required
+```typescript
+export class Agent implements INodeType {
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const agentType = this.getNodeParameter('agent', 0, '') as string;
+		const nodeVersion = this.getNode().typeVersion;
 
-### Phase 3: Tool Discovery
-- **N8n Tools**: Discovers tools connected via ai_tool inputs
-- **MCP Tools**: Connects to MCP servers via SSE transport
-- **Tool Conversion**: Converts all tools to LangChain-compatible format
-- **Validation**: Ensures all tool names are unique
+		if (agentType === 'conversationalAgent') {
+			return await conversationalAgentExecute.call(this, nodeVersion);
+		} else if (agentType === 'toolsAgent') {
+			return await toolsAgentExecute.call(this);
+		} else if (agentType === 'openAiFunctionsAgent') {
+			return await openAiFunctionsAgentExecute.call(this, nodeVersion);
+		} else if (agentType === 'reActAgent') {
+			return await reActAgentAgentExecute.call(this, nodeVersion);
+		} else if (agentType === 'sqlAgent') {
+			return await sqlAgentAgentExecute.call(this);
+		} else if (agentType === 'planAndExecuteAgent') {
+			return await planAndExecuteAgentExecute.call(this, nodeVersion);
+		}
 
-### Phase 4: System Prompt Construction
-- **Base Message**: "You are a helpful assistant"
-- **Tool Descriptions**: Automatically embedded from discovered tools
-- **Context**: Chat history and formatting instructions added
-- **Agent Creation**: LangChain agent created with tools and prompt
+		throw new NodeOperationError(this.getNode(), `The agent type "${agentType}" is not supported`);
+	}
+}
+```
 
-### Phase 5: LLM Interaction Loop
-- **Initial Call**: User question sent to LLM with system context
-- **Response Analysis**: LLM response checked for tool calls or final answer
-- **Tool Execution**: If tools requested, appropriate tool is called
-- **Result Processing**: Tool results sent back to LLM for continued reasoning
-- **Iteration**: Process continues until final answer or max iterations
+### Tools Agent Executor
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
 
-### Phase 6: Output Processing
-- **Structured Output**: If output parser connected, validates response format
-- **Memory Storage**: Conversation context saved for future interactions
-- **Response Cleanup**: Internal fields removed from final response
-- **Delivery**: Processed answer returned to user
+```typescript
+export async function toolsAgentExecute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+	this.logger.debug('Executing Tools Agent');
 
-## Tool Integration Details
+	const returnData: INodeExecutionData[] = [];
+	const items = this.getInputData();
+	const outputParser = await getOptionalOutputParser(this);
+	const tools = await getTools(this, outputParser);
+
+	for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		try {
+			const model = await getChatModel(this);
+			const memory = await getOptionalMemory(this);
+
+			const input = getPromptInputByType({
+				ctx: this,
+				i: itemIndex,
+				inputKey: 'text',
+				promptTypeKey: 'promptType',
+			});
+
+			// Create the agent and execute
+			const agent = createToolCallingAgent({
+				llm: model,
+				tools,
+				prompt,
+				streamRunnable: false,
+			});
+
+			const executor = AgentExecutor.fromAgentAndTools({
+				agent: runnableAgent,
+				memory,
+				tools,
+				returnIntermediateSteps: options.returnIntermediateSteps === true,
+				maxIterations: options.maxIterations ?? 10,
+			});
+
+			const response = await executor.invoke({
+				input,
+				system_message: options.systemMessage ?? SYSTEM_MESSAGE,
+			});
+
+			returnData.push({ json: response });
+		} catch (error) {
+			// Error handling logic
+		}
+	}
+
+	return [returnData];
+}
+```
+
+### Get Chat Model
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+export async function getChatModel(ctx: IExecuteFunctions): Promise<BaseChatModel> {
+	const model = await ctx.getInputConnectionData(NodeConnectionTypes.AiLanguageModel, 0);
+	if (!isChatInstance(model) || !model.bindTools) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			'Tools Agent requires Chat Model which supports Tools calling',
+		);
+	}
+	return model;
+}
+```
+
+### Get Optional Memory
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+export async function getOptionalMemory(
+	ctx: IExecuteFunctions,
+): Promise<BaseChatMemory | undefined> {
+	return (await ctx.getInputConnectionData(NodeConnectionTypes.AiMemory, 0)) as
+		| BaseChatMemory
+		| undefined;
+}
+```
+
+### Get Output Parser
+*Reference: `packages/@n8n/nodes-langchain/utils/output_parsers/N8nOutputParser.ts`*
+
+```typescript
+export async function getOptionalOutputParser(
+	ctx: IExecuteFunctions,
+): Promise<N8nOutputParser | undefined> {
+	let outputParser: N8nOutputParser | undefined;
+
+	if (ctx.getNodeParameter('hasOutputParser', 0, true) === true) {
+		outputParser = (await ctx.getInputConnectionData(
+			NodeConnectionTypes.AiOutputParser,
+			0,
+		)) as N8nOutputParser;
+	}
+
+	return outputParser;
+}
+```
+
+### Discover Tools
+*Reference: `packages/@n8n/nodes-langchain/utils/helpers.ts`*
+
+```typescript
+export const getConnectedTools = async (
+	ctx: IExecuteFunctions | IWebhookFunctions,
+	enforceUniqueNames: boolean,
+	convertStructuredTool: boolean = true,
+	escapeCurlyBrackets: boolean = false,
+) => {
+	const connectedTools = (
+		((await ctx.getInputConnectionData(NodeConnectionTypes.AiTool, 0)) as Array<Toolkit | Tool>) ??
+		[]
+	).flatMap((toolOrToolkit) => {
+		if (toolOrToolkit instanceof Toolkit) {
+			return toolOrToolkit.getTools() as Tool[];
+		}
+		return toolOrToolkit;
+	});
+
+	if (!enforceUniqueNames) return connectedTools;
+
+	const seenNames = new Set<string>();
+	const finalTools: Tool[] = [];
+
+	for (const tool of connectedTools) {
+		const { name } = tool;
+		if (seenNames.has(name)) {
+			throw new NodeOperationError(
+				ctx.getNode(),
+				`You have multiple tools with the same name: '${name}', please rename them to avoid conflicts`,
+			);
+		}
+		seenNames.add(name);
+
+		if (convertStructuredTool && tool instanceof N8nTool) {
+			finalTools.push(tool.asDynamicTool());
+		} else {
+			finalTools.push(tool);
+		}
+	}
+
+	return finalTools;
+};
+```
 
 ### N8n Tools
-- **Connection**: Via ai_tool input connections
-- **Schema**: Zod-based validation for input parameters
-- **Execution**: Direct execution within n8n workflow context
-- **Error Handling**: Graceful error reporting back to LLM
+*Reference: `packages/@n8n/nodes-langchain/utils/N8nTool.ts`*
+
+```typescript
+export class N8nTool extends DynamicStructuredTool {
+	constructor(
+		private context: ISupplyDataFunctions,
+		fields: DynamicStructuredToolInput,
+	) {
+		super(fields);
+	}
+
+	asDynamicTool(): DynamicTool {
+		const { name, func, schema, context, description } = this;
+		const parser = new StructuredOutputParser(schema);
+
+		const wrappedFunc = async function (query: string) {
+			let parsedQuery: object;
+
+			try {
+				parsedQuery = await parser.parse(query);
+			} catch (e) {
+				// Graceful error handling for malformed input
+				let dataFromModel;
+				try {
+					dataFromModel = jsonParse<IDataObject>(query, { acceptJSObject: true });
+				} catch (error) {
+					if (Object.keys(schema.shape).length === 1) {
+						const parameterName = Object.keys(schema.shape)[0];
+						dataFromModel = { [parameterName]: query };
+					} else {
+						throw new NodeOperationError(
+							context.getNode(),
+							`Input is not a valid JSON: ${error.message}`,
+						);
+					}
+				}
+				parsedQuery = schema.parse(dataFromModel);
+			}
+
+			try {
+				const result = await func(parsedQuery);
+				return result;
+			} catch (e) {
+				const { index } = context.addInputData(NodeConnectionTypes.AiTool, [[{ json: { query } }]]);
+				void context.addOutputData(NodeConnectionTypes.AiTool, index, e);
+				return e.toString();
+			}
+		};
+
+		return new DynamicTool({
+			name,
+			description: prepareFallbackToolDescription(description, schema),
+			func: wrappedFunc,
+		});
+	}
+}
+```
 
 ### MCP Tools
-- **Protocol**: Model Context Protocol via SSE transport
-- **Discovery**: Real-time tool listing from MCP servers
-- **Execution**: Remote tool execution via callTool method
-- **Authentication**: Support for header and bearer token auth
-- **Conversion**: Automatic conversion to LangChain format
+*Reference: `packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/McpClientTool.node.ts`*
 
-## Error Handling Strategy
+```typescript
+async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<ToolsAgentAction[]> {
+	const credentials = await this.getCredentials<McpCredentials>('mcpApi');
+	const { authentication, sseEndpoint } = credentials;
 
-### Tool Errors
-- Connection failures reported to LLM for graceful handling
-- Execution errors passed to LLM with context for recovery
-- Schema validation errors provide detailed debugging information
+	const { headers } = await getAuthHeaders(this, authentication);
+	const client = await connectMcpClient({
+		sseEndpoint,
+		headers,
+		name: 'n8n-mcp-client',
+		version: 1,
+	});
 
-### LLM Errors
-- Processing errors properly propagated with context
-- Timeout handling with configurable limits
-- Streaming disabled for stability in tool calling scenarios
+	if (!client.ok) {
+		this.logger.error('McpClientTool: Failed to connect to MCP Server', {
+			error: client.error,
+		});
+		// Error handling logic
+	}
 
-### MCP Protocol Errors
-- Connection retry mechanisms
-- Transport error handling
-- Server unavailability graceful degradation
+	const allTools = await getAllTools(client.result);
+	const mcpTools = getSelectedTools({
+		tools: allTools,
+		mode: this.getNodeParameter('toolsToInclude', itemIndex) as McpToolIncludeMode,
+		includeTools: this.getNodeParameter('includeTools', itemIndex, []) as string[],
+		excludeTools: this.getNodeParameter('excludeTools', itemIndex, []) as string[],
+	});
 
-## Key Technical Features
+	const tools = mcpTools.map((tool) =>
+		mcpToolToDynamicTool(
+			tool,
+			createCallTool(tool.name, client.result, (error) => {
+				this.logger.error(`McpClientTool: Error executing tool ${tool.name}`, { error });
+				return `Error: ${error}`;
+			}),
+		),
+	);
 
-### Schema Validation
-- **Zod Integration**: All tool inputs validated against schemas
-- **Type Safety**: Ensures correct parameter types and formats
-- **Error Messages**: Detailed validation error reporting
+	return new McpToolkit(tools);
+}
+```
 
-### Memory Management
-- **Optional**: Memory usage is configurable
-- **Context Preservation**: Maintains conversation history
-- **Cleanup**: Automatic cleanup of internal processing fields
+### Convert N8n Tools
+*Reference: `packages/@n8n/nodes-langchain/utils/N8nTool.ts`*
 
-### Performance Optimizations
-- **Tool Caching**: Tools discovered once per execution
-- **Connection Pooling**: MCP client connection reuse
-- **Efficient Validation**: Optimized schema validation process
+```typescript
+asDynamicTool(): DynamicTool {
+	const { name, func, schema, context, description } = this;
+	const parser = new StructuredOutputParser(schema);
 
-### Security Controls
-- **Access Control**: Only explicitly connected tools available
-- **Input Sanitization**: All inputs validated and sanitized
-- **Error Filtering**: Sensitive information filtered from error messages
-- **Resource Limits**: Configurable max iterations and timeouts
+	const wrappedFunc = async function (query: string) {
+		let parsedQuery: object;
+		
+		// Parse and validate input
+		try {
+			parsedQuery = await parser.parse(query);
+		} catch (e) {
+			// Handle parsing errors gracefully
+		}
 
-## Architecture Benefits
+		// Execute the tool function
+		try {
+			const result = await func(parsedQuery);
+			return result;
+		} catch (e) {
+			return e.toString();
+		}
+	};
 
-This implementation provides:
+	return new DynamicTool({
+		name,
+		description: prepareFallbackToolDescription(description, schema),
+		func: wrappedFunc,
+	});
+}
+```
 
-- **Extensibility**: Easy addition of new tool types
-- **Reliability**: Comprehensive error handling and recovery
-- **Performance**: Optimized for production workloads
-- **Security**: Multiple layers of input validation and access control
-- **Flexibility**: Support for both local and remote tools
-- **Maintainability**: Clean separation of concerns and modular design
+### MCP SSE Connection
+*Reference: `packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts`*
 
-The n8n AI Agent node represents a robust, production-ready framework for building AI agents that can seamlessly integrate with both local n8n workflows and remote MCP-compatible services while maintaining conversation context and providing structured outputs.
+```typescript
+export async function connectMcpClient({
+	headers,
+	sseEndpoint,
+	name,
+	version,
+}: {
+	sseEndpoint: string;
+	headers?: Record<string, string>;
+	name: string;
+	version: number;
+}): Promise<Result<Client, ConnectMcpClientError>> {
+	try {
+		const endpoint = normalizeAndValidateUrl(sseEndpoint);
+
+		if (!endpoint.ok) {
+			return createResultError({ type: 'invalid_url', error: endpoint.error });
+		}
+
+		const transport = new SSEClientTransport(endpoint.result, {
+			eventSourceInit: {
+				fetch: async (url, init) =>
+					await fetch(url, {
+						...init,
+						headers: {
+							...headers,
+							Accept: 'text/event-stream',
+						},
+					}),
+			},
+			requestInit: { headers },
+		});
+
+		const client = new Client(
+			{ name, version: version.toString() },
+			{ capabilities: { tools: {} } },
+		);
+
+		await client.connect(transport);
+		return createResultOk(client);
+	} catch (error) {
+		return createResultError({ type: 'connection', error });
+	}
+}
+```
+
+### List MCP Tools
+*Reference: `packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts`*
+
+```typescript
+export async function getAllTools(client: Client, cursor?: string): Promise<McpTool[]> {
+	const { tools, nextCursor } = await client.listTools({ cursor });
+
+	if (nextCursor) {
+		return (tools as McpTool[]).concat(await getAllTools(client, nextCursor));
+	}
+
+	return tools as McpTool[];
+}
+```
+
+### Convert MCP Tools
+*Reference: `packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts`*
+
+```typescript
+export function mcpToolToDynamicTool(
+	tool: McpTool,
+	onCallTool: DynamicStructuredToolInput['func'],
+) {
+	return new DynamicStructuredTool({
+		name: tool.name,
+		description: tool.description ?? '',
+		schema: convertJsonSchemaToZod(tool.inputSchema),
+		func: onCallTool,
+		metadata: { isFromToolkit: true },
+	});
+}
+```
+
+### Validate Tool Names
+*Reference: `packages/@n8n/nodes-langchain/utils/helpers.ts`*
+
+```typescript
+const seenNames = new Set<string>();
+const finalTools: Tool[] = [];
+
+for (const tool of connectedTools) {
+	const { name } = tool;
+	if (seenNames.has(name)) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`You have multiple tools with the same name: '${name}', please rename them to avoid conflicts`,
+		);
+	}
+	seenNames.add(name);
+	
+	if (convertStructuredTool && tool instanceof N8nTool) {
+		finalTools.push(tool.asDynamicTool());
+	} else {
+		finalTools.push(tool);
+	}
+}
+```
+
+### Prepare Messages
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+export async function prepareMessages(
+	ctx: IExecuteFunctions,
+	itemIndex: number,
+	options: {
+		systemMessage?: string;
+		passthroughBinaryImages?: boolean;
+		outputParser?: N8nOutputParser;
+	},
+): Promise<BaseMessagePromptTemplateLike[]> {
+	const useSystemMessage = options.systemMessage ?? ctx.getNode().typeVersion < 1.9;
+
+	const messages: BaseMessagePromptTemplateLike[] = [];
+
+	if (useSystemMessage) {
+		messages.push([
+			'system',
+			`{system_message}${options.outputParser ? '\n\n{formatting_instructions}' : ''}`,
+		]);
+	} else if (options.outputParser) {
+		messages.push(['system', '{formatting_instructions}']);
+	}
+
+	messages.push(['placeholder', '{chat_history}'], ['human', '{input}']);
+
+	// Add binary message if present
+	const hasBinaryData = ctx.getInputData()?.[itemIndex]?.binary !== undefined;
+	if (hasBinaryData && options.passthroughBinaryImages) {
+		const binaryMessage = await extractBinaryMessages(ctx, itemIndex);
+		messages.push(binaryMessage);
+	}
+
+	messages.push(['placeholder', '{agent_scratchpad}']);
+	return messages;
+}
+```
+
+### System Message
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/prompt.ts`*
+
+```typescript
+export const SYSTEM_MESSAGE = 'You are a helpful assistant';
+```
+
+### Create Agent
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+// Create the base agent that calls tools
+const agent = createToolCallingAgent({
+	llm: model,
+	tools,
+	prompt,
+	streamRunnable: false,
+});
+
+agent.streamRunnable = false;
+
+// Wrap the agent with parsers and fixes
+const runnableAgent = RunnableSequence.from([
+	agent,
+	getAgentStepsParser(outputParser, memory),
+	fixEmptyContentMessage,
+]);
+```
+
+### Agent Executor
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+const executor = AgentExecutor.fromAgentAndTools({
+	agent: runnableAgent,
+	memory,
+	tools,
+	returnIntermediateSteps: options.returnIntermediateSteps === true,
+	maxIterations: options.maxIterations ?? 10,
+});
+
+// Invoke the executor with the given input and system message
+const response = await executor.invoke(
+	{
+		input,
+		system_message: options.systemMessage ?? SYSTEM_MESSAGE,
+		formatting_instructions:
+			'IMPORTANT: For your response to user, you MUST use the `format_final_json_response` tool with your complete answer formatted according to the required schema.',
+	},
+	{ signal: this.getExecutionCancelSignal() },
+);
+```
+
+### Parse Tool Request
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+export const getAgentStepsParser =
+	(outputParser?: N8nOutputParser, memory?: BaseChatMemory) =>
+	async (steps: AgentFinish | AgentAction[]): Promise<AgentFinish | AgentAction[]> => {
+		// Check if the steps contain the 'format_final_json_response' tool invocation
+		if (Array.isArray(steps)) {
+			const responseParserTool = steps.find((step) => step.tool === 'format_final_json_response');
+			if (responseParserTool && outputParser) {
+				const toolInput = responseParserTool.toolInput;
+				const parserInput = toolInput instanceof Object ? JSON.stringify(toolInput) : toolInput;
+				const returnValues = (await outputParser.parse(parserInput)) as Record<string, unknown>;
+				return handleParsedStepOutput(returnValues, memory);
+			}
+		}
+
+		return handleAgentFinishOutput(steps);
+	};
+```
+
+### Execute N8n Tool
+*Reference: `packages/@n8n/nodes-langchain/utils/N8nTool.ts`*
+
+```typescript
+const wrappedFunc = async function (query: string) {
+	let parsedQuery: object;
+
+	// Parse input with error handling
+	try {
+		parsedQuery = await parser.parse(query);
+	} catch (e) {
+		// Handle malformed input gracefully
+	}
+
+	try {
+		// Call tool function with parsed query
+		const result = await func(parsedQuery);
+		return result;
+	} catch (e) {
+		const { index } = context.addInputData(NodeConnectionTypes.AiTool, [[{ json: { query } }]]);
+		void context.addOutputData(NodeConnectionTypes.AiTool, index, e);
+		return e.toString();
+	}
+};
+```
+
+### Execute MCP Tool
+*Reference: `packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts`*
+
+```typescript
+export const createCallTool =
+	(name: string, client: Client, onError: (error: string | undefined) => void) =>
+	async (args: IDataObject) => {
+		let result: Awaited<ReturnType<Client['callTool']>>;
+		try {
+			result = await client.callTool({ name, arguments: args }, CompatibilityCallToolResultSchema);
+		} catch (error) {
+			return onError(getErrorDescriptionFromToolCall(error));
+		}
+
+		if (result.isError) {
+			return onError(getErrorDescriptionFromToolCall(result));
+		}
+
+		if (result.toolResult !== undefined) {
+			return result.toolResult;
+		}
+
+		if (result.content !== undefined) {
+			return result.content;
+		}
+
+		return result;
+	};
+```
+
+### Format Structured Output
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+export function handleParsedStepOutput(
+	output: Record<string, unknown>,
+	memory?: BaseChatMemory,
+): { returnValues: Record<string, unknown>; log: string } {
+	return {
+		returnValues: memory ? { output: JSON.stringify(output) } : output,
+		log: 'Final response formatted',
+	};
+}
+```
+
+### Clean Response
+*Reference: `packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts`*
+
+```typescript
+export function handleAgentFinishOutput(
+	steps: AgentFinish | AgentAction[],
+): AgentFinish | AgentAction[] {
+	const agentFinishSteps = steps as AgentMultiOutputFinish | AgentFinish;
+
+	if (agentFinishSteps.returnValues) {
+		const isMultiOutput = Array.isArray(agentFinishSteps.returnValues?.output);
+		if (isMultiOutput) {
+			const multiOutputSteps = agentFinishSteps.returnValues.output as Array<{
+				index: number;
+				type: string;
+				text: string;
+			}>;
+			const isTextOnly = multiOutputSteps.every((output) => 'text' in output);
+			if (isTextOnly) {
+				agentFinishSteps.returnValues.output = multiOutputSteps
+					.map((output) => output.text)
+					.join('\n')
+					.trim();
+			}
+			return agentFinishSteps;
+		}
+	}
+
+	return agentFinishSteps;
+}
+```
+
+## Flow Summary
+
+This comprehensive flow shows how the n8n AI Agent processes user questions through multiple phases:
+
+1. **Input Processing** - Validates and prepares user input
+2. **Component Initialization** - Sets up LLM, memory, and output parser
+3. **Tool Discovery** - Finds both N8n and MCP tools, converts them to compatible format
+4. **Agent Creation** - Builds LangChain agent with tools and system prompt
+5. **Iterative Execution** - LLM processes input, calls tools as needed, continues until completion
+6. **Output Processing** - Formats response according to requirements and saves to memory
+
+The implementation seamlessly integrates local N8n tools with remote MCP tools, providing a unified interface for AI agents to interact with various external services and workflows.
