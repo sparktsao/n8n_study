@@ -58,6 +58,30 @@ graph TD
     
     FF --> GG[Return Final Answer]
     GG --> HH[User Receives Response]
+
+    %% Clickable links to source code
+    click B "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/Agent.node.ts" "Main Agent Node"
+    click D "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts" "Tools Agent Executor"
+    click F "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L200" "getChatModel Function"
+    click G "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L210" "getOptionalMemory Function"
+    click H "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/output_parsers/N8nOutputParser.ts#L12" "getOptionalOutputParser Function"
+    click I "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/helpers.ts#L120" "getConnectedTools Function"
+    click J "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/N8nTool.ts" "N8n Tool Implementation"
+    click K "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/McpClientTool.node.ts" "MCP Client Tool"
+    click L "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/N8nTool.ts#L44" "N8n Tool asDynamicTool"
+    click M "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L120" "MCP SSE Connection"
+    click N "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L10" "MCP getAllTools Function"
+    click O "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L70" "mcpToolToDynamicTool Function"
+    click P "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/helpers.ts#L140" "Tool Name Validation"
+    click Q "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L250" "prepareMessages Function"
+    click R "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/prompt.ts" "System Message"
+    click T "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L320" "createToolCallingAgent"
+    click U "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L350" "Agent Executor Invoke"
+    click W "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L100" "getAgentStepsParser"
+    click Y1 "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/utils/N8nTool.ts#L44" "N8n Tool Execution"
+    click Y2 "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/utils.ts#L50" "MCP Tool Execution"
+    click DD "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L130" "handleParsedStepOutput"
+    click EE "https://github.com/n8n-io/n8n/blob/master/packages/@n8n/nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/execute.ts#L60" "handleAgentFinishOutput"
 ```
 
 ## Detailed Component Breakdown
