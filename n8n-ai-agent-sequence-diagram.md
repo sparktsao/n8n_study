@@ -28,18 +28,18 @@ sequenceDiagram
     participant OutputParser as Output Parser
     participant Memory as Memory Store
 
-    Note over User, Memory: 1. QUESTION PROCESSING PHASE
+    Note over User, Memory: QUESTION PROCESSING PHASE
     User->>AgentNode: User Question Input
     AgentNode->>AgentNode: Validate Input Parameters
     AgentNode->>AgentNode: Determine Agent Type (toolsAgent)
     AgentNode->>ToolsAgent: Execute with Input
 
-    Note over ToolsAgent, Memory: 2. INITIALIZATION PHASE
+    Note over ToolsAgent, Memory: INITIALIZATION PHASE
     ToolsAgent->>LLM: getChatModel() - Validate LLM supports tool calling
     ToolsAgent->>Memory: getOptionalMemory() - Load conversation history
     ToolsAgent->>OutputParser: getOptionalOutputParser() - Load output format requirements
 
-    Note over ToolsAgent, Memory: 3. TOOL DISCOVERY PHASE
+    Note over ToolsAgent, Memory: TOOL DISCOVERY PHASE
     ToolsAgent->>ToolConnector: getConnectedTools()
     
     ToolConnector->>N8nTool: Discover N8n Tools
@@ -55,25 +55,25 @@ sequenceDiagram
     ToolConnector->>ToolConnector: Convert N8nTool to DynamicTool
     ToolConnector-->>ToolsAgent: Return All Available Tools
 
-    Note over ToolsAgent, Memory: 4. OUTPUT PARSER TOOL INJECTION
+    Note over ToolsAgent, Memory: OUTPUT PARSER TOOL INJECTION
     alt Output Parser Connected
         ToolsAgent->>ToolsAgent: Create format_final_json_response tool
         ToolsAgent->>ToolsAgent: Add to tools list with schema validation
     end
 
-    Note over ToolsAgent, Memory: 5. PROMPT PREPARATION PHASE
+    Note over ToolsAgent, Memory: PROMPT PREPARATION PHASE
     ToolsAgent->>ToolsAgent: prepareMessages() - Build prompt template
     ToolsAgent->>ToolsAgent: Include system message + tool descriptions
     ToolsAgent->>ToolsAgent: Add chat history placeholder
     ToolsAgent->>ToolsAgent: Add user input placeholder
     ToolsAgent->>ToolsAgent: Add agent scratchpad placeholder
 
-    Note over ToolsAgent, Memory: 6. AGENT CREATION PHASE
+    Note over ToolsAgent, Memory: AGENT CREATION PHASE
     ToolsAgent->>LLM: createToolCallingAgent() - Bind tools to LLM
     ToolsAgent->>ToolsAgent: Create RunnableSequence with parsers
     ToolsAgent->>ToolsAgent: Create AgentExecutor with tools and memory
 
-    Note over ToolsAgent, Memory: 7. LLM INTERACTION LOOP
+    Note over ToolsAgent, Memory: LLM INTERACTION LOOP
     ToolsAgent->>LLM: Initial invoke() with user question + system prompt
     
     loop Until Final Answer or Max Iterations
@@ -102,7 +102,7 @@ sequenceDiagram
         end
     end
 
-    Note over ToolsAgent, Memory: 8. OUTPUT PROCESSING PHASE
+    Note over ToolsAgent, Memory: OUTPUT PROCESSING PHASE
     alt Output Parser Required
         ToolsAgent->>ToolsAgent: Check for format_final_json_response tool usage
         ToolsAgent->>OutputParser: Parse structured output
@@ -111,13 +111,13 @@ sequenceDiagram
         ToolsAgent->>ToolsAgent: handleAgentFinishOutput() - Normalize response
     end
 
-    Note over ToolsAgent, Memory: 9. MEMORY STORAGE PHASE
+    Note over ToolsAgent, Memory: MEMORY STORAGE PHASE
     alt Memory Connected
         ToolsAgent->>Memory: Save conversation context
         Memory->>Memory: Store user question + agent response
     end
 
-    Note over ToolsAgent, Memory: 10. RESPONSE FINALIZATION
+    Note over ToolsAgent, Memory: RESPONSE FINALIZATION
     ToolsAgent->>ToolsAgent: Clean up internal fields
     ToolsAgent-->>AgentNode: Return final response
     AgentNode-->>User: Return processed answer
