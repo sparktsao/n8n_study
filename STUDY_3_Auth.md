@@ -2,6 +2,8 @@
 
 n8n (node automation platform) supports multiple authentication methods for securing webhook endpoints and integrating external services. Here's a quick breakdown of the three main types of auth you can use:
 
+<img src="webhook.png>
+
 ## 🔐 1. Basic Auth
 Send username and password directly with each request.
 
