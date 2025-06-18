@@ -69,6 +69,41 @@ curl -X POST https://your-n8n-domain.com/webhook/testflow \
 
 Good for simple internal use cases, but be sure to validate headers explicitly in a code node.
 
+## 🤔 Which Auth Method Should You Use?
+
+Here's a decision tree to help you choose the right authentication method for your n8n workflows:
+
+```mermaid
+flowchart TD
+    A[Need Authentication?] -->|Yes| B[Security Level?]
+    A -->|No| Z[No Auth - Not Recommended]
+    
+    B -->|Basic| C[Simple Setup]
+    B -->|Medium| D[Custom Headers]
+    B -->|High| E[JWT]
+    
+    C -->|Pros| C1[Easy to implement\nBuilt into browsers\nWidely supported]
+    C -->|Cons| C2[Credentials sent with every request\nNo built-in expiration]
+    
+    D -->|Pros| D1[Simple to implement\nFlexible header names\nLow overhead]
+    D -->|Cons| D2[Requires manual validation\nNo standard format\nLess secure than JWT]
+    
+    E -->|Pros| E1[Secure\nContains claims/metadata\nBuilt-in expiration\nStateless]
+    E -->|Cons| E2[More complex to implement\nLarger payload size]
+    
+    subgraph Recommendations
+    R1[Internal tools, quick prototypes] --> C
+    R2[Simple integrations, internal APIs] --> D
+    R3[Production systems, public APIs] --> E
+    end
+```
+
+### Quick Decision Guide:
+
+- **Use Basic Auth when:** You need a simple, widely supported authentication method for internal tools or quick prototypes.
+- **Use Custom Header Auth when:** You need a flexible, lightweight solution for simple integrations or internal APIs.
+- **Use JWT when:** You need a secure, feature-rich authentication method for production systems or public APIs, especially when you need to include user information or handle token expiration.
+
 ## 🔒 ⚠️ Security Note
 Never use these authentication methods over plain HTTP. Always serve your n8n instance over HTTPS to prevent interception of credentials or tokens. Consider adding:
 
@@ -78,30 +113,52 @@ Never use these authentication methods over plain HTTP. Always serve your n8n in
 
 ## 🧠 Additional Security Best Practices
 
-### 🔐 1. Mandate HTTPS + SSL Certificates
-- Always serve n8n over HTTPS, with SSL certs (e.g., via Let's Encrypt or reverse proxy/Nginx) to encrypt traffic
-- Configure certificates in HTTP Request nodes if connecting to SSL-secured services
+### Auth-Specific Best Practices
 
-### 🛡️ 2. Harden Webhook Triggers
-- Require auth (Basic, Header, or JWT) on Webhook nodes; don't rely on obscure URLs alone
-- Use IP whitelisting, CORS restrictions, and limit payload size in your Webhook settings
-- Add rate limiting and payload validation (e.g., JSON schema, field checks) before triggering heavy workflows
+#### 🔐 Basic Auth Best Practices
+- Implement strong password policies (complexity, length, no common passwords)
+- Rotate credentials regularly to minimize risk of compromised credentials
+- Consider implementing IP restrictions since Basic Auth has no built-in expiration
+- Store credentials securely in n8n's credential store, never hardcode in workflows
 
-### 🧩 3. Secure JWT Usage
+#### 🔑 JWT Best Practices
 - Use n8n's native JWT credential type for authenticated Webhooks—JWT payload gets added automatically to jwtPayload
-- Keep tokens short-lived, avoid storing any sensitive data in the payload, and always verify the signature
+- Keep tokens short-lived with reasonable expiration times (1-24 hours depending on sensitivity)
+- Include only necessary data in the payload, never sensitive information
+- Always verify the token signature before processing requests
+- Implement token refresh mechanisms for long-running sessions
+- Consider using stronger algorithms (RS256 instead of HS256) for high-security applications
 
-### 🔄 4. Manage Tokens Smartly
-- For OAuth1/OAuth2 workflows, leverage n8n's built-in credential nodes to handle token refresh flow cleanly
-- Centralize token handling: e.g. have a "get-token" workflow that refreshes and shares tokens with downstream workflows
+#### 🧩 Custom Header Auth Best Practices
+- Use unpredictable, high-entropy secrets for header values
+- Implement explicit validation in Code nodes with constant-time comparison
+- Consider combining with additional headers (e.g., timestamp + signature) for added security
+- Rotate header secrets periodically, especially for external integrations
+- Validate headers before performing any sensitive operations in your workflow
 
-### 🧑‍💻 5. Secure API Access
-- Use API keys for n8n's REST API (X-N8N-API-KEY), with expiration and (if available) scoped permissions
-- Disable public API access in hosted environments if not needed
+### Common Security Practices for All Auth Types
 
-### 👥 6. Strengthen n8n User Accounts
-- Implement SSO and 2FA, disable anonymous data collection or unused endpoints
-- Follow internal policies: avoid using owner-level accounts for daily flow editing; keep unique webhook paths per workflow/user
+#### 🔒 Transport Security
+- Always serve n8n over HTTPS, with SSL certs (e.g., via Let's Encrypt or reverse proxy/Nginx)
+- Configure certificates in HTTP Request nodes if connecting to SSL-secured services
+- Use secure WebSocket connections (wss://) for real-time applications
+
+#### 🛡️ Webhook Hardening
+- Don't rely on obscure URLs alone ("security by obscurity")
+- Use IP whitelisting, CORS restrictions, and limit payload size
+- Add rate limiting and payload validation before triggering heavy workflows
+- Implement request logging for security auditing
+
+#### 🔄 Token Management
+- For OAuth1/OAuth2 workflows, leverage n8n's built-in credential nodes to handle token refresh
+- Centralize token handling: e.g., have a "get-token" workflow that refreshes and shares tokens
+
+#### 🧑‍💻 Platform Security
+- Use API keys for n8n's REST API (X-N8N-API-KEY), with expiration and scoped permissions
+- Implement SSO and 2FA for n8n user accounts
+- Disable anonymous data collection or unused endpoints
+- Follow least privilege principle: avoid using owner-level accounts for daily flow editing
+- Use unique webhook paths per workflow/user
 
 ## 🧠 TL;DR Security Checklist
 
