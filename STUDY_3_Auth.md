@@ -14,6 +14,9 @@ curl -X POST https://your-n8n-domain.com/webhook/testflow \
   -d '{"question":"hello Spark!"}'
 ```
 
+<img src="What is Basic Authentication.png">
+Basic authentication follows a standard HTTP flow: initial HTTP request → 401 Unauthorized response → HTTP request with basic auth credentials → 200 OK response. This is different from header authentication which doesn't follow this challenge-response pattern.
+
 ## 🔑 2. JWT (JSON Web Token)
 A more secure, stateless method using signed tokens.
 
@@ -28,6 +31,31 @@ A more secure, stateless method using signed tokens.
 ```
 
 n8n backend verifies token and extracts the payload before proceeding.
+
+### JWT Code Example (Python)
+Here's how to generate a JWT token using Python:
+
+```python
+import jwt
+import time
+
+secret = "YOUR_SECURET"  # replace with the same value as in your JWT Auth
+payload = {
+    "sub": "spark's code for test_JWT.ipynb",
+    "iat": int(time.time()),
+    "exp": int(time.time()) + 13600  # valid for 1 hour
+}
+
+token = jwt.encode(payload, secret, algorithm="HS256")
+print(token)
+```
+
+This generates a signed token that can be used in your Authorization header. The payload includes:
+- `sub`: Subject (who the token refers to)
+- `iat`: Issued At timestamp
+- `exp`: Expiration timestamp (1 hour from creation in this example)
+
+<img src="JWT_decoder.png">
 
 ## 🧩 3. Custom Header Auth
 Pass custom headers and validate inside your flow.
