@@ -175,12 +175,117 @@ graph TD
     K --> L[Dequeue Next Execution]
 ```
 
+### What Happens When Limits Are Reached
+
+**IMPORTANT: Executions are QUEUED, not DROPPED when limits are reached.**
+
+#### Example Scenario: Limit Set to 10
+
+```bash
+N8N_CONCURRENCY_PRODUCTION_LIMIT=10
+```
+
+**Timeline of Events:**
+
+1. **Requests 1-10**: Execute immediately (capacity available)
+2. **Request 11**: Gets **QUEUED** (not dropped), waits for capacity
+3. **Request 12**: Gets **QUEUED** behind request 11
+4. **Request 13+**: Continue queuing in FIFO order
+
+**When Execution #3 completes (after 100 seconds):**
+- Capacity increases from 0 to 1
+- Request 11 is **automatically dequeued** and starts executing
+- Queue now has requests 12, 13, 14... waiting
+
+#### Code Implementation
+
+```typescript
+// packages/cli/src/concurrency/concurrency-queue.ts
+async enqueue(executionId: string) {
+  this.capacity--;  // Reduce available capacity
+  
+  if (this.capacity < 0) {
+    // QUEUE the execution (don't drop it)
+    this.emit('execution-throttled', { executionId });
+    
+    return new Promise<void>((resolve) => 
+      this.queue.push({ executionId, resolve })
+    );
+  }
+  // If capacity >= 0, execution proceeds immediately
+}
+```
+
 ### Queue Management
 
 - **FIFO**: First In, First Out execution order
-- **Non-blocking**: Executions are queued, not rejected
+- **Non-blocking**: Executions are queued, not rejected or dropped
 - **Capacity tracking**: Real-time monitoring of available slots
 - **Event-driven**: Telemetry and monitoring events
+- **Promise-based**: Queued executions wait on promises that resolve when capacity becomes available
+
+### Understanding "Concurrent" in Workflow Context
+
+**"Concurrent workflow execution" means multiple COMPLETE workflow runs happening simultaneously.**
+
+#### What Constitutes One "Concurrent Execution"
+
+Each workflow execution (from trigger to completion) counts as ONE concurrent execution:
+
+```
+Workflow A: Trigger → Node 1 → Node 2 → Node 3 → Complete (100 seconds total)
+Workflow B: Trigger → Node 1 → Node 2 → Complete (50 seconds total)
+Workflow C: Trigger → Node 1 → Complete (10 seconds total)
+```
+
+If limit = 2:
+- **Time 0s**: Workflow A starts, Workflow B starts (2/2 slots used)
+- **Time 5s**: Workflow C gets **QUEUED** (waits for A or B to finish)
+- **Time 50s**: Workflow B completes → Workflow C **automatically starts**
+- **Time 100s**: Workflow A completes → Next queued workflow can start
+
+#### Long-Running Workflows Impact
+
+**Yes, the queue waits for long-running workflows to complete.**
+
+**Example with 100-second workflow:**
+
+```bash
+# Limit set to 3 concurrent executions
+N8N_CONCURRENCY_PRODUCTION_LIMIT=3
+
+Timeline:
+00:00 - Workflow 1 starts (webhook trigger) - will run for 100 seconds
+00:05 - Workflow 2 starts (webhook trigger) - will run for 30 seconds  
+00:10 - Workflow 3 starts (webhook trigger) - will run for 20 seconds
+00:15 - Workflow 4 QUEUED (waits for any of 1,2,3 to finish)
+00:20 - Workflow 5 QUEUED (waits behind Workflow 4)
+
+00:30 - Workflow 3 completes → Workflow 4 starts immediately
+00:35 - Workflow 2 completes → Workflow 5 starts immediately
+01:40 - Workflow 1 completes (after 100 seconds)
+```
+
+**Key Points:**
+- Each workflow holds its slot for the **entire duration** of execution
+- Long-running workflows (100+ seconds) will block new executions if limit is reached
+- The system does **NOT** interrupt or time-out long-running workflows
+- Queued workflows wait patiently until capacity becomes available
+
+#### Within-Workflow Concurrency
+
+**Important distinction**: The concurrency limit applies to **complete workflow executions**, not individual nodes within a workflow.
+
+```
+Single Workflow Execution = 1 Concurrent Slot
+├── Node 1 (HTTP Request) - 5 seconds
+├── Node 2 (Data Processing) - 2 seconds  
+├── Node 3 (Database Write) - 3 seconds
+└── Node 4 (Email Send) - 1 second
+Total: 11 seconds = 1 concurrent execution slot
+```
+
+Even if Node 1 makes 10 parallel HTTP requests internally, this still counts as **1 concurrent workflow execution**.
 
 ## 6. Monitoring and Telemetry
 
