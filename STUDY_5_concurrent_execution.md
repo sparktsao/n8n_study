@@ -545,16 +545,106 @@ The unlimited default exists because:
 2. **Resource-based scaling** - Set limits based on your actual CPU, memory, and I/O capacity  
 3. **Monitor and adjust** - Start conservative and increase based on monitoring
 
-### Recommended Settings
+### Recommended Settings by Hardware
+
+#### AWS Instance Type Recommendations
+
+| Instance Type | vCPU | RAM | Recommended Limit | Use Case |
+|---------------|------|-----|------------------|----------|
+| **t2.nano** | 1 | 0.5GB | **1-2** | ⚠️ **NOT RECOMMENDED** |
+| **t2.micro** | 1 | 1GB | **2-3** | Development/Testing only |
+| **t2.small** | 1 | 2GB | **3-5** | Light development |
+| **t2.medium** | 2 | 4GB | **5-10** | Small production |
+| **t2.large** | 2 | 8GB | **10-15** | Medium production |
+| **t3.medium** | 2 | 4GB | **8-12** | Better performance |
+| **t3.large** | 2 | 8GB | **15-20** | Recommended minimum |
+| **t3.xlarge** | 4 | 16GB | **25-35** | Production workloads |
+| **c5.large** | 2 | 4GB | **20-25** | CPU-optimized |
+| **c5.xlarge** | 4 | 8GB | **35-50** | High-performance |
+
+#### ⚠️ t2.nano Specific Warning
 
 ```bash
-# For small deployments (1-2 CPU cores)
+# AWS t2.nano specifications:
+# - 1 vCPU (burstable)
+# - 0.5GB RAM (512MB)
+# - Network: Low to Moderate
+
+# CRITICAL LIMITATIONS:
+N8N_CONCURRENCY_PRODUCTION_LIMIT=1  # MAXIMUM recommended
+# Even with limit=1, you may experience:
+# - Out of memory crashes with complex workflows
+# - CPU throttling due to burst credit exhaustion
+# - Network timeouts under load
+```
+
+#### t2.nano Configuration Example
+
+```bash
+# Docker run command for t2.nano
+docker run -d \
+  --name n8n \
+  --restart unless-stopped \
+  -p 5678:5678 \
+  -e N8N_CONCURRENCY_PRODUCTION_LIMIT=1 \
+  -e N8N_CONCURRENCY_EVALUATION_LIMIT=1 \
+  --memory=400m \
+  --memory-swap=400m \
+  n8nio/n8n
+
+# Additional memory protection
+# Limit Docker container to 400MB (leave 100MB for system)
+```
+
+#### Why t2.nano is Problematic
+
+**Memory Constraints:**
+- n8n base process: ~100-150MB
+- Each workflow execution: 10-50MB+
+- With 512MB total RAM, you can only run 1-2 simple workflows
+- Complex workflows (with large data processing) will cause OOM
+
+**CPU Burst Credits:**
+- t2.nano uses CPU burst credits
+- Sustained high CPU usage exhausts credits
+- Performance drops to baseline (5% of vCPU)
+- Workflows become extremely slow
+
+**Network Limitations:**
+- Low network performance
+- May timeout on external API calls
+- Webhook responses may be delayed
+
+#### Better Alternatives for Budget Deployments
+
+```bash
+# Minimum recommended for production
+Instance: t3.medium (2 vCPU, 4GB RAM)
+Configuration: N8N_CONCURRENCY_PRODUCTION_LIMIT=8
+Cost: ~$30/month
+
+# Budget option with acceptable performance  
+Instance: t2.medium (2 vCPU, 4GB RAM)
+Configuration: N8N_CONCURRENCY_PRODUCTION_LIMIT=5
+Cost: ~$24/month
+
+# If you must use t2.nano (development only)
+Instance: t2.nano (1 vCPU, 0.5GB RAM)
+Configuration: N8N_CONCURRENCY_PRODUCTION_LIMIT=1
+Cost: ~$4/month
+Warning: Expect frequent crashes and poor performance
+```
+
+### General Hardware-Based Settings
+
+```bash
+# For small deployments (1-2 CPU cores, 2-4GB RAM)
 N8N_CONCURRENCY_PRODUCTION_LIMIT=5
 
-# For medium deployments (4-8 CPU cores)  
+# For medium deployments (4-8 CPU cores, 8-16GB RAM)  
 N8N_CONCURRENCY_PRODUCTION_LIMIT=20
 
-# For large deployments (8+ CPU cores)
+# For large deployments (8+ CPU cores, 16GB+ RAM)
 N8N_CONCURRENCY_PRODUCTION_LIMIT=50
 
 # For unlimited (default - use with caution)
