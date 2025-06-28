@@ -287,7 +287,163 @@ Total: 11 seconds = 1 concurrent execution slot
 
 Even if Node 1 makes 10 parallel HTTP requests internally, this still counts as **1 concurrent workflow execution**.
 
-## 6. Monitoring and Telemetry
+## 6. Queue Ownership and Storage
+
+### Two Different Queue Systems
+
+**IMPORTANT: n8n uses TWO separate queue systems that serve different purposes:**
+
+#### 1. Concurrency Queue (In-Memory)
+- **Owner**: n8n process itself
+- **Storage**: **In-memory only** (JavaScript arrays)
+- **Purpose**: Controls how many workflows can run simultaneously
+- **Persistence**: **NOT persistent** - lost on restart
+- **Location**: `packages/cli/src/concurrency/concurrency-queue.ts`
+
+```typescript
+// This is a simple in-memory JavaScript array
+private readonly queue: Array<{
+  executionId: string;
+  resolve: () => void;
+}> = [];
+```
+
+#### 2. Bull Job Queue (Redis-based)
+- **Owner**: External Redis server
+- **Storage**: **Redis database** (persistent)
+- **Purpose**: Manages job distribution in scaling/worker mode
+- **Persistence**: **Persistent** - survives restarts
+- **Location**: `packages/cli/src/scaling/scaling.service.ts`
+
+```typescript
+// This uses Bull.js with Redis backend
+const { default: BullQueue } = await import('bull');
+this.queue = new BullQueue(QUEUE_NAME, {
+  prefix,
+  settings: this.globalConfig.queue.bull.settings,
+  createClient: (type) => service.createClient({ type: `${type}(bull)` }),
+});
+```
+
+### Queue System Relationship
+
+```mermaid
+graph TD
+    A[Workflow Execution Request] --> B{Execution Mode?}
+    B -->|Regular Mode| C[Concurrency Queue Check]
+    B -->|Queue Mode| D[Bull Queue + Concurrency Queue]
+    
+    C --> E{Concurrency Available?}
+    E -->|Yes| F[Execute in Main Process]
+    E -->|No| G[Wait in Memory Queue]
+    
+    D --> H[Add to Bull Queue - Redis]
+    H --> I[Worker Picks Up Job]
+    I --> J[Worker Checks Concurrency Queue]
+    J --> K{Worker Concurrency Available?}
+    K -->|Yes| L[Execute in Worker]
+    K -->|No| M[Wait in Worker Memory Queue]
+```
+
+### Storage Characteristics
+
+| Aspect | Concurrency Queue | Bull Job Queue |
+|--------|------------------|----------------|
+| **Storage** | In-memory JavaScript Array | Redis Database |
+| **Persistence** | ❌ Lost on restart | ✅ Survives restarts |
+| **Shared** | ❌ Per-process only | ✅ Shared across workers |
+| **Purpose** | Rate limiting | Job distribution |
+| **External Dependency** | ❌ None | ✅ Requires Redis |
+
+### What Happens on Restart
+
+#### Concurrency Queue (In-Memory)
+```bash
+# Before restart: 3 executions queued
+Concurrency Queue: [exec-123, exec-456, exec-789]
+
+# After restart: Queue is empty
+Concurrency Queue: []
+# Queued executions are LOST
+```
+
+#### Bull Job Queue (Redis)
+```bash
+# Before restart: 3 jobs queued in Redis
+Bull Queue (Redis): [job-123, job-456, job-789]
+
+# After restart: Jobs still exist in Redis
+Bull Queue (Redis): [job-123, job-456, job-789]
+# Jobs are PRESERVED and will be processed
+```
+
+### Configuration Dependencies
+
+#### Regular Mode (Single Instance)
+```bash
+# Only needs concurrency configuration
+N8N_CONCURRENCY_PRODUCTION_LIMIT=10
+
+# No Redis required - uses in-memory queue only
+```
+
+#### Queue Mode (Scaling/Workers)
+```bash
+# Needs both concurrency AND Redis configuration
+N8N_CONCURRENCY_PRODUCTION_LIMIT=10
+
+# Redis configuration for Bull queue
+QUEUE_BULL_REDIS_HOST=localhost
+QUEUE_BULL_REDIS_PORT=6379
+QUEUE_BULL_REDIS_DB=0
+```
+
+### Memory vs Persistent Queue Behavior
+
+#### In-Memory Concurrency Queue
+- **Fast**: No network calls, immediate response
+- **Volatile**: Lost on process restart/crash
+- **Process-specific**: Each n8n instance has its own queue
+- **Simple**: Just JavaScript arrays and promises
+
+#### Redis Bull Queue  
+- **Persistent**: Survives restarts and crashes
+- **Shared**: Multiple workers can access the same queue
+- **Network-dependent**: Requires Redis connection
+- **Feature-rich**: Job priorities, retries, scheduling, monitoring
+
+### Practical Implications
+
+#### For Self-Hosted Users
+
+**Single Instance (Regular Mode):**
+- Concurrency queue is **in-memory only**
+- If n8n restarts, queued executions are **lost**
+- No external dependencies required
+
+**Multi-Instance (Queue Mode):**
+- Bull queue is **persistent in Redis**
+- Concurrency queue is still **in-memory per worker**
+- Jobs survive restarts, but concurrency queuing doesn't
+
+#### Example Scenario
+
+```bash
+# Setup: Limit = 2, Queue Mode with Redis
+N8N_CONCURRENCY_PRODUCTION_LIMIT=2
+
+Timeline:
+1. 3 webhook requests arrive simultaneously
+2. Request 1,2: Start executing (concurrency slots used)
+3. Request 3: Added to Bull queue (Redis) AND concurrency queue (memory)
+4. n8n worker restarts
+5. Request 3: Still in Bull queue (Redis) ✅
+6. Request 3: Lost from concurrency queue (memory) ❌
+7. Worker picks up Request 3 from Bull queue
+8. Request 3: Checks concurrency → executes immediately (slots available)
+```
+
+## 7. Monitoring and Telemetry
 
 ### Cloud Deployment Tracking
 
@@ -308,13 +464,86 @@ this.telemetry.track('User hit concurrency limit', {
 - `execution-released`: When execution completes and releases capacity
 - `concurrency-check`: Periodic capacity monitoring
 
-## 7. Practical Implications
+## 8. Resource Exhaustion Risk with Default Settings
+
+### ⚠️ CRITICAL WARNING: Default Unlimited Setting Risk
+
+**YES, the default limit=-1 means n8n will accept and run ALL incoming requests simultaneously without any throttling.**
+
+#### What This Means in Practice
+
+```bash
+# Default configuration (DANGEROUS for production)
+N8N_CONCURRENCY_PRODUCTION_LIMIT=-1  # UNLIMITED
+
+# Scenario: 1000 webhook requests arrive simultaneously
+# Result: n8n attempts to run ALL 1000 workflows at once
+```
+
+#### Resource Exhaustion Timeline
+
+```
+Time 0s:   100 webhook requests arrive → All start executing
+Time 1s:   200 more requests arrive → All start executing  
+Time 2s:   500 more requests arrive → All start executing
+Time 3s:   System runs out of memory → n8n crashes
+Time 4s:   Docker container restarts → All queued executions LOST
+```
+
+#### Real-World Impact
+
+**Memory Consumption:**
+- Each workflow execution consumes 10-50MB+ of RAM
+- 100 concurrent workflows = 1-5GB RAM usage
+- 1000 concurrent workflows = 10-50GB RAM usage
+- **Result: Out of Memory (OOM) crash**
+
+**CPU Consumption:**
+- Each workflow uses CPU cycles for processing
+- No limit = CPU usage can hit 100% across all cores
+- **Result: System becomes unresponsive**
+
+**Network Consumption:**
+- HTTP requests, API calls, database connections
+- No limit = can exhaust network connections
+- **Result: Connection pool exhaustion**
+
+#### Docker Container Behavior
+
+```bash
+# Docker container with default settings
+docker run -it --rm \
+  --name n8n \
+  -p 5678:5678 \
+  n8nio/n8n
+
+# What happens with traffic spike:
+1. Container receives 500+ simultaneous webhooks
+2. Starts 500+ workflow executions simultaneously  
+3. RAM usage spikes to 10GB+ (exceeds container limits)
+4. Docker kills container due to OOM
+5. Container restarts with empty concurrency queue
+6. All in-progress executions are LOST
+```
+
+### Why n8n Defaults to Unlimited
+
+The unlimited default exists because:
+
+1. **Development/Testing**: Easy to get started without configuration
+2. **Small Deployments**: Many users have low traffic volumes
+3. **Flexibility**: Allows users to set their own limits based on hardware
+4. **No Assumptions**: n8n doesn't know your server specifications
+
+**However, this is NOT suitable for production environments with significant traffic.**
+
+## 9. Practical Implications
 
 ### For Self-Hosted Users
 
-1. **No artificial limits** - Run as many concurrent workflows as your hardware can handle
-2. **Resource-based scaling** - Limited only by CPU, memory, and I/O capacity
-3. **Configurable controls** - Set limits based on your infrastructure needs
+1. **⚠️ MUST configure limits for production** - The default unlimited setting can crash your system
+2. **Resource-based scaling** - Set limits based on your actual CPU, memory, and I/O capacity  
+3. **Monitor and adjust** - Start conservative and increase based on monitoring
 
 ### Recommended Settings
 
